@@ -1,0 +1,373 @@
+service:
+  name: aac-lyndrix-core
+  image_repo: ghcr.io/lyndrix-platform/lyndrix-core
+  image_tag: 1.12.0
+  description: Lyndrix Core Application
+  icon: /icons/lyndrix-core.png
+  category: Management
+  stage: prod
+  hostname: lyndrix
+ports:
+- name: web-ui
+  port: 8081
+  external_port: 8081
+  protocol: TCP
+- name: react-ui
+  port: 5173
+  external_port: 5173
+  protocol: TCP
+config:
+  domain_name: example.com
+  generate_hostname: false
+  integrations:
+    homepage:
+      enabled: true
+    autodns:
+      enabled: true
+      create_wildcard: true
+    traefik:
+      enabled: true
+      cert_resolver: ionos
+      entrypoint: websecure
+  schema_version: 2
+stage_overrides:
+  prod:
+    config:
+      generate_hostname: false
+    service:
+      hostname: lyndrix
+secrets:
+  LYNDRIX_SYSTEM_API_KEY: CHANGE_ME
+  LYNDRIX_GATEWAY_DISCORD_DEFAULT_BOT_TOKEN: CHANGE_ME
+  STORAGE_SECRET: CHANGE_ME
+  DB_PASSWORD: CHANGE_ME
+  LYNDRIX_MASTER_KEY: CHANGE_ME
+  MARIADB_ROOT_PASSWORD: CHANGE_ME
+  MARIADB_DATABASE: lyndrix_db
+  MARIADB_USER: admin
+  MARIADB_PASSWORD: CHANGE_ME
+volumes:
+  plugins:
+    type: bind
+    source: /export/docker/aac-lyndrix-core/plugins
+  plugins_runner:
+    type: bind
+    source: /export/docker/aac-lyndrix-core/plugins-runner
+  storage:
+    type: bind
+    source: /export/docker/aac-lyndrix-core/storage
+  secure_data:
+    type: bind
+    source: /export/docker/aac-lyndrix-core/secure_data
+  db:
+    type: bind
+    source: /export/docker/aac-lyndrix-core/db
+  vault_data:
+    type: bind
+    source: /export/docker/aac-lyndrix-core/vault_data
+  vault_config:
+    type: bind
+    target: /export/docker/aac-lyndrix-core/vault_config
+    description: Configuration directory mapping for vault.json
+  docker_sock:
+    type: bind
+    source: /var/run/docker.sock
+deployment_strategy:
+  main:
+    enabled: true
+    target_stage: prod
+  dev:
+    enabled: true
+    target_stage: dev
+  test:
+    enabled: false
+    target_stage: test
+  ansible-dev:
+    enabled: true
+    target_stage: dev
+  iac-dev:
+    enabled: true
+    target_stage: dev
+  template-dev:
+    enabled: true
+    target_stage: dev
+deployments:
+  docker_compose:
+    restart_policy: unless-stopped
+    host_base_path: /export/docker
+    networks_to_join:
+    - secured
+    - stack_internal
+    sysctls:
+      net.ipv4.tcp_retries2: '{{ vars.TCP_RETRIES2 }}'
+    depends_on:
+    - service: aac-lyndrix-db
+      condition: service_healthy
+    - service: aac-lyndrix-vault
+      condition: service_started
+    volumes:
+    - storage:/data/storage
+    - plugins:/app/plugins
+    - secure_data:/data/security
+    - docker_sock:/var/run/docker.sock
+    environment:
+      TZ: '{{ vars.TZ }}'
+      DB_HOST: '{{ vars.DB_HOST }}'
+      PYTHONUNBUFFERED: '{{ vars.PYTHONUNBUFFERED }}'
+      PGID: '{{ vars.PGID }}'
+      DB_NAME: '{{ vars.DB_NAME }}'
+      PUID: '{{ vars.PUID }}'
+      ENV_TYPE: '{{ vars.ENV_TYPE }}'
+      VAULT_URL: '{{ vars.VAULT_URL }}'
+      DB_USER: '{{ vars.DB_USER }}'
+      APP_NAME: '{{ vars.APP_NAME }}'
+      APP_TITLE: '{{ vars.APP_TITLE }}'
+      HOST_GIT_REPOS_DIR: '{{ vars.HOST_GIT_REPOS_DIR }}'
+      HOST_SECURITY_DIR: '{{ vars.HOST_SECURITY_DIR }}'
+      CI_LYNDRIX_ORCHESTRATOR_URL: '{{ vars.CI_LYNDRIX_ORCHESTRATOR_URL }}'
+      CI_LYNDRIX_ORCHESTRATOR_TOKEN: '{{ vars.CI_LYNDRIX_ORCHESTRATOR_TOKEN }}'
+      LYNDRIX_DIRECT_TRIGGER_ENABLED: '{{ vars.LYNDRIX_DIRECT_TRIGGER_ENABLED }}'
+      LYNDRIX_DEPLOY_WAIT_ENABLED: '{{ vars.LYNDRIX_DEPLOY_WAIT_ENABLED }}'
+      LYNDRIX_DEPLOY_WAIT_TIMEOUT_SECONDS: '{{ vars.LYNDRIX_DEPLOY_WAIT_TIMEOUT_SECONDS
+        }}'
+      LYNDRIX_DEPLOY_WAIT_INTERVAL_SECONDS: '{{ vars.LYNDRIX_DEPLOY_WAIT_INTERVAL_SECONDS
+        }}'
+      LYNDRIX_SYSTEM_API_KEY: '{{ secrets.LYNDRIX_SYSTEM_API_KEY }}'
+      LYNDRIX_GATEWAY_DISCORD_DEFAULT_CHANNEL_ID: '{{ vars.LYNDRIX_GATEWAY_DISCORD_DEFAULT_CHANNEL_ID
+        }}'
+      LYNDRIX_GATEWAY_DISCORD_DEFAULT_BOT_TOKEN: '{{ secrets.LYNDRIX_GATEWAY_DISCORD_DEFAULT_BOT_TOKEN
+        }}'
+      LYNDRIX_GATEWAY_DISCORD_DEFAULT_BOT_NAME: '{{ vars.LYNDRIX_GATEWAY_DISCORD_DEFAULT_BOT_NAME
+        }}'
+      LYNDRIX_NOTIF_DEFAULT_PROVIDER: '{{ vars.LYNDRIX_NOTIF_DEFAULT_PROVIDER }}'
+      PLUGIN_IAC_ORCHESTRATOR_INTERNAL_GIT_REPOS_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_INTERNAL_GIT_REPOS_DIR
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_INTERNAL_SECURITY_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_INTERNAL_SECURITY_DIR
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_INTERNAL_SERVICES_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_INTERNAL_SERVICES_DIR
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_PARALLEL_WORKERS: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_PARALLEL_WORKERS
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_HOST_GIT_REPOS_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_HOST_GIT_REPOS_DIR
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_HOST_SERVICES_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_HOST_SERVICES_DIR
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_HOST_SECURITY_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_HOST_SECURITY_DIR
+        }}'
+      LYNDRIX_UI_ENGINE: '{{ vars.LYNDRIX_UI_ENGINE }}'
+      LYNDRIX_CLUSTER_MODE: '{{ vars.LYNDRIX_CLUSTER_MODE }}'
+      LYNDRIX_INSTANCE_ID: '{{ vars.LYNDRIX_INSTANCE_ID }}'
+      LYNDRIX_INSTANCE_ROLES: '{{ vars.LYNDRIX_INSTANCE_ROLES }}'
+      LYNDRIX_TRUSTED_PROXIES: '{{ vars.LYNDRIX_TRUSTED_PROXIES }}'
+      CORS_ALLOWED_ORIGINS: '{{ vars.CORS_ALLOWED_ORIGINS }}'
+      LYNDRIX_OIDC_REDIRECT_URI: '{{ vars.LYNDRIX_OIDC_REDIRECT_URI }}'
+      STORAGE_SECRET: '{{ secrets.STORAGE_SECRET }}'
+      DB_PASSWORD: '{{ secrets.DB_PASSWORD }}'
+      LYNDRIX_MASTER_KEY: '{{ secrets.LYNDRIX_MASTER_KEY }}'
+      MARIADB_ROOT_PASSWORD: '{{ secrets.MARIADB_ROOT_PASSWORD }}'
+      MARIADB_DATABASE: '{{ secrets.MARIADB_DATABASE }}'
+      MARIADB_USER: '{{ secrets.MARIADB_USER }}'
+      MARIADB_PASSWORD: '{{ secrets.MARIADB_PASSWORD }}'
+      LYNDRIX_ADMIN_PASSWORD: '{{ secrets.LYNDRIX_ADMIN_PASSWORD }}'
+      LYNDRIX_BOT_PASSWORD: '{{ secrets.LYNDRIX_BOT_PASSWORD }}'
+dependencies:
+  runner:
+    name: aac-lyndrix-runner
+    image_repo: ghcr.io/lyndrix-platform/lyndrix-core
+    image_tag: 1.12.0
+    cap_add:
+    - NET_RAW
+    sysctls:
+      net.ipv4.tcp_retries2: '{{ vars.TCP_RETRIES2 }}'
+    ports:
+    - name: web-ui
+      port: 8081
+      external_port: 8082
+      protocol: TCP
+    environment:
+      TZ: '{{ vars.TZ }}'
+      PYTHONUNBUFFERED: '{{ vars.PYTHONUNBUFFERED }}'
+      PUID: '{{ vars.PUID }}'
+      PGID: '{{ vars.PGID }}'
+      ENV_TYPE: '{{ vars.ENV_TYPE }}'
+      APP_NAME: '{{ vars.APP_NAME }}'
+      APP_TITLE: '{{ vars.APP_TITLE }}'
+      DB_HOST: '{{ vars.DB_HOST }}'
+      DB_NAME: '{{ vars.DB_NAME }}'
+      DB_USER: '{{ vars.DB_USER }}'
+      DB_PASSWORD: '{{ secrets.DB_PASSWORD }}'
+      VAULT_URL: '{{ vars.VAULT_URL }}'
+      LYNDRIX_MASTER_KEY: '{{ secrets.LYNDRIX_MASTER_KEY }}'
+      STORAGE_SECRET: '{{ secrets.STORAGE_SECRET }}'
+      LYNDRIX_SYSTEM_API_KEY: '{{ secrets.LYNDRIX_SYSTEM_API_KEY }}'
+      LYNDRIX_ADMIN_PASSWORD: '{{ secrets.LYNDRIX_ADMIN_PASSWORD }}'
+      LYNDRIX_BOT_PASSWORD: '{{ secrets.LYNDRIX_BOT_PASSWORD }}'
+      LYNDRIX_UI_ENGINE: api
+      LYNDRIX_CLUSTER_MODE: '{{ vars.LYNDRIX_CLUSTER_MODE }}'
+      LYNDRIX_INSTANCE_ID: '{{ vars.LYNDRIX_RUNNER_INSTANCE_ID }}'
+      LYNDRIX_INSTANCE_ROLES: '{{ vars.LYNDRIX_RUNNER_ROLES }}'
+      LYNDRIX_TRUSTED_PROXIES: '{{ vars.LYNDRIX_TRUSTED_PROXIES }}'
+      HOST_GIT_REPOS_DIR: '{{ vars.HOST_GIT_REPOS_DIR }}'
+      HOST_SECURITY_DIR: '{{ vars.HOST_SECURITY_DIR }}'
+      PLUGIN_IAC_ORCHESTRATOR_INTERNAL_GIT_REPOS_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_INTERNAL_GIT_REPOS_DIR
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_INTERNAL_SECURITY_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_INTERNAL_SECURITY_DIR
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_INTERNAL_SERVICES_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_INTERNAL_SERVICES_DIR
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_PARALLEL_WORKERS: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_PARALLEL_WORKERS
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_HOST_GIT_REPOS_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_HOST_GIT_REPOS_DIR
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_HOST_SERVICES_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_HOST_SERVICES_DIR
+        }}'
+      PLUGIN_IAC_ORCHESTRATOR_HOST_SECURITY_DIR: '{{ vars.PLUGIN_IAC_ORCHESTRATOR_HOST_SECURITY_DIR
+        }}'
+      LYNDRIX_GATEWAY_DISCORD_DEFAULT_CHANNEL_ID: '{{ vars.LYNDRIX_GATEWAY_DISCORD_DEFAULT_CHANNEL_ID
+        }}'
+      LYNDRIX_GATEWAY_DISCORD_DEFAULT_BOT_TOKEN: '{{ secrets.LYNDRIX_GATEWAY_DISCORD_DEFAULT_BOT_TOKEN
+        }}'
+      LYNDRIX_GATEWAY_DISCORD_DEFAULT_BOT_NAME: '{{ vars.LYNDRIX_GATEWAY_DISCORD_DEFAULT_BOT_NAME
+        }}'
+      LYNDRIX_NOTIF_DEFAULT_PROVIDER: '{{ vars.LYNDRIX_NOTIF_DEFAULT_PROVIDER }}'
+    volumes:
+      storage:
+        target: /data/storage
+        description: Shared git working trees, services and job logs of the IaC Orchestrator
+      plugins_runner:
+        target: /app/plugins
+        description: Plugin directory of the runner instance (per-instance artifacts)
+      secure_data:
+        target: /data/security
+        description: Vault key file + Ansible SSH key
+      docker_sock:
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        description: Spawns the aac-runner-* job containers on this host
+    networks_to_join:
+    - secured
+    - stack_internal
+  ui:
+    name: aac-lyndrix-ui
+    image_repo: ghcr.io/lyndrix-platform/lyndrix-ui
+    image_tag: 1.8.0
+    environment:
+      VITE_CORE_URL: '{{ vars.VITE_CORE_URL }}'
+      TZ: '{{ vars.TZ }}'
+      PGID: '{{ vars.PGID }}'
+      PUID: '{{ vars.PUID }}'
+    ports:
+    - name: web
+      port: 80
+      external_port: 8282
+      protocol: TCP
+    networks_to_join:
+    - secured
+    - stack_internal
+    labels:
+      traefik.enable: 'true'
+      traefik.docker.network: services-secured
+      traefik.http.routers.lyndrix-react.rule: Host(`mngm.{{ config.domain_name }}`)
+      traefik.http.routers.lyndrix-react.entrypoints: websecure
+      traefik.http.routers.lyndrix-react.tls: 'true'
+      traefik.http.routers.lyndrix-react.tls.certresolver: ionos
+      traefik.http.services.lyndrix-react.loadbalancer.server.port: '80'
+      auto-dns.customDNS.lyndrix-react: 'true'
+      auto-dns.createWildcard.lyndrix-react: 'true'
+      auto-dns.customDOMAIN.lyndrix-react: '{{ config.domain_name }}'
+      auto-dns.customHost.lyndrix-react: mngm
+  database:
+    import: catalog/mariadb.yml
+    overrides:
+      name: aac-lyndrix-db
+      image_tag: 12.2.2
+      volumes:
+        db:
+          target: /var/lib/mysql
+          description: Persistent storage for db
+      environment:
+        TZ: '{{ vars.TZ }}'
+        PGID: '{{ vars.PGID }}'
+        PUID: '{{ vars.PUID }}'
+  vault:
+    name: aac-lyndrix-vault
+    image_repo: hashicorp/vault
+    image_tag: 2.2.1
+    user: root
+    command:
+    - server
+    cap_add:
+    - IPC_LOCK
+    environment:
+      VAULT_API_ADDR: '{{ vars.VAULT_API_ADDR }}'
+      SKIP_SETCAP: 'true'
+      TZ: '{{ vars.TZ }}'
+      PGID: '{{ vars.PGID }}'
+      PUID: '{{ vars.PUID }}'
+    volumes:
+      vault_data:
+        target: /vault/file
+        description: Persistent storage for vault_data
+      vault_config:
+        target: /vault/config
+        description: Configuration directory mapping for vault.json
+    networks_to_join:
+    - secured
+    - stack_internal
+    labels:
+      traefik.enable: 'true'
+      traefik.docker.network: services-secured
+      traefik.http.routers.lyndrix-vault.rule: Host(`lyndrix-vault.{{ config.domain_name
+        }}`)
+      traefik.http.routers.lyndrix-vault.entrypoints: websecure
+      traefik.http.routers.lyndrix-vault.tls: 'true'
+      traefik.http.routers.lyndrix-vault.tls.certresolver: ionos
+      traefik.http.services.lyndrix-vault.loadbalancer.server.port: '8200'
+      auto-dns.customDNS.lyndrix-vault: 'true'
+      auto-dns.createWildcard.lyndrix-vault: 'true'
+      auto-dns.customDOMAIN.lyndrix-vault: '{{ config.domain_name }}'
+      auto-dns.customHost.lyndrix-vault: lyndrix-vault
+vars:
+  TZ: Europe/Berlin
+  DB_HOST: lyndrix.example.com
+  PYTHONUNBUFFERED: '1'
+  PGID: '1000'
+  DB_NAME: lyndrix_db
+  PUID: '1000'
+  ENV_TYPE: prod
+  VAULT_URL: https://lyndrix.example.com
+  DB_USER: admin
+  APP_NAME: Lyndrix
+  APP_TITLE: Lyndrix - Feser
+  HOST_GIT_REPOS_DIR: lyndrix.example.com
+  HOST_SECURITY_DIR: lyndrix.example.com
+  CI_LYNDRIX_ORCHESTRATOR_URL: https://lyndrix.example.com
+  CI_LYNDRIX_ORCHESTRATOR_TOKEN: ''
+  LYNDRIX_DIRECT_TRIGGER_ENABLED: 'true'
+  LYNDRIX_DEPLOY_WAIT_ENABLED: 'true'
+  LYNDRIX_DEPLOY_WAIT_TIMEOUT_SECONDS: '1800'
+  LYNDRIX_DEPLOY_WAIT_INTERVAL_SECONDS: '10'
+  LYNDRIX_GATEWAY_DISCORD_DEFAULT_CHANNEL_ID: '1386158392191615056'
+  LYNDRIX_GATEWAY_DISCORD_DEFAULT_BOT_NAME: Lyndrix
+  LYNDRIX_NOTIF_DEFAULT_PROVIDER: discord
+  PLUGIN_IAC_ORCHESTRATOR_INTERNAL_GIT_REPOS_DIR: /data/storage/git_repos
+  PLUGIN_IAC_ORCHESTRATOR_INTERNAL_SECURITY_DIR: /data/security
+  PLUGIN_IAC_ORCHESTRATOR_INTERNAL_SERVICES_DIR: /data/storage/services
+  PLUGIN_IAC_ORCHESTRATOR_PARALLEL_WORKERS: 20
+  PLUGIN_IAC_ORCHESTRATOR_HOST_GIT_REPOS_DIR: lyndrix.example.com
+  PLUGIN_IAC_ORCHESTRATOR_HOST_SERVICES_DIR: lyndrix.example.com
+  PLUGIN_IAC_ORCHESTRATOR_HOST_SECURITY_DIR: lyndrix.example.com
+  LYNDRIX_BOT_PASSWORD: CHANGE_ME
+  LYNDRIX_ADMIN_PASSWORD: CHANGE_ME
+  LYNDRIX_UI_ENGINE: api
+  LYNDRIX_CLUSTER_MODE: single
+  LYNDRIX_INSTANCE_ID: lyndrix
+  LYNDRIX_INSTANCE_ROLES: api,leader,runner
+  LYNDRIX_TRUSTED_PROXIES: '*'
+  LYNDRIX_RUNNER_INSTANCE_ID: lyndrix-runner
+  LYNDRIX_RUNNER_ROLES: runner
+  TCP_RETRIES2: '8'
+  CORS_ALLOWED_ORIGINS: '["https://mngm.example.com"]'
+  LYNDRIX_OIDC_REDIRECT_URI: https://mngm.example.com/auth/callback/oidc
+  VITE_CORE_URL: https://lyndrix.example.com
+  VAULT_API_ADDR: CHANGE_ME
